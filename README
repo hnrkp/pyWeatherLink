@@ -1,0 +1,42 @@
+Hi there!
+
+pyWeatherLink is a python implementation of the communication protocol 
+used by the Davis WeatherLink. It has been developed with a WeatherLink 
+coupled with a Davis WeatherWizard III, but should also work with a 
+Davis Perception II or a Weather Monitor II. It has been written from 
+scratch by Henrik Persson <root@fulhack.info> in a weekends time during 
+the fall of 2008.
+
+pyWeatherLink is hacky, largely undocumented, needs some refactoring and 
+(re)design and all users should beware of bugs. That said, it has been 
+running for six months uninterrupted, 24 hours a day, seven days a week 
+without any problems serving the weather information for 
+http://www.estt.se.
+
+communication.py holds the bits and pieces for communicating with the 
+WeatherLink. It uses pySerial for serial communication (ttyS1 is 
+hardcoded, feel free to change it) with the device. See weatherlink.py 
+for an example of how to just read the data values once, and see 
+WxDaemon.py for a simple SocketServer implementation.
+
+There is a lot of stuff on the TODO-list (like implementing CRC-CCITT 
+checking of the data received from the WeatherLInk), so feel free to 
+tinker with the code. If you do, I appreciate a patch of your changes. 
+The project is, for me, in a state of hiatus at the moment, due to lack 
+of time and interest (it works, no need to fix it, right?). But if 
+anyone is interested I would be more than happy making this into a 
+larger project with a few more people onboard. Drop an email if you are 
+interested. :)
+
+pyWeatherLink is free software: you can redistribute it and/or modify 
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+yWeatherLink is distributed in the hope that it will be useful, but 
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU 
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License along 
+with pyWeatherLink. If not, see <http://www.gnu.org/licenses/>.
