@@ -115,5 +115,6 @@ class WxRequestHandler(SocketServer.BaseRequestHandler):
         #print self.client_address, 'disconnected!'
         return
 
+SocketServer.ThreadingTCPServer.allow_reuse_address = True
 server = SocketServer.ThreadingTCPServer(('127.0.0.1', 6666), WxRequestHandler)
 server.serve_forever()
