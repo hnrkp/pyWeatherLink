@@ -22,20 +22,28 @@ import serial
 import struct
 import time
 
-from conversions import *
+from conversions import dewpoint_approximation, f2c, inHg2hPa, mph2kts
 
-from datatypes import SensorImage, ArchiveImage
+from datatypes import SensorImage#, ArchiveImage
+from crc import CRC_CCITT
 
 class Link:
-    def __init__(self):
-        self.__ser = serial.Serial('/dev/ttyS1', 2400, timeout=10)
+    def __init__(self, dev = '/dev/ttyUSB0', baud = 19200):
+        self.__ser = serial.Serial(dev, baud, timeout = 2)
+        self.__ser.write("\n")
+        print "woo: ", self.__ser.read(200)
+        
+        self.setTime()
 
     def __del__(self):
         self.__ser.close()
 
     def checkAck(self):
-        resp = self.__ser.read()
-        
+        resp = "\n"
+
+        while resp == "\n" or resp == "\r":
+            resp = self.__ser.read()
+
         if resp == '':
             raise Exception("Timeout waiting for ack")
         
@@ -43,126 +51,72 @@ class Link:
 
         if ack[0] == 0x21:
             raise Exception("Response NOK!")
+        
+        if ack[0] == 0x18:
+            raise Exception("CRC error!")
 
         if ack[0] != 0x06:
+            print "ack: ", ack[0], "response: "
+            for c in resp:
+                print ord(c),
+            while (self.__ser.inWaiting()):
+                self.__ser.read()
             raise Exception("Response was not NOK, but not ACK either..")
+        
 
     def getSensorImage(self):
-        numLoops = struct.pack("<H", 0xFFFF)
-
-        self.__ser.write("LOOP"+numLoops+"\r");
+        self.__ser.write("LOOP 1\n");
 
         self.checkAck()
 
-        buf = self.__ser.read(18)
-            
-        response = struct.unpack("<BhhBHHBBHHH", buf)
+        buf = self.__ser.read(99)
         
-        #TODO: Implement CRC-CCITT-check of the last Uint16! See Techref page 9.
-        
-        if response[0] != 0x01:
-            raise Exception("Start of block-byte was not 0x01")
+        if buf[0:3] != "LOO":
+            raise Exception("Start of block was not LOO")
             
         img = SensorImage()
-        img.WindSpeed = mph2kts(response[3])
-        img.WindDirection = response[4]
-        img.IndoorTemperature = f2c(float(response[1])/10)
-        img.OutdoorTemperature = f2c(float(response[2])/10)
+        img.WindSpeed = mph2kts(struct.unpack("<B", buf[14])[0])
+        img.AverageWindSpeed = mph2kts(struct.unpack("<B", buf[15])[0])
+        img.WindDirection = struct.unpack("<H", buf[16:18])[0]
+        img.IndoorTemperature = f2c(float(struct.unpack("<H", buf[9:11])[0])/10)
+        img.IndoorRelativeHumidity = struct.unpack("<B", buf[11])[0]
+        img.OutdoorTemperature = f2c(float(struct.unpack("<H", buf[12:14])[0])/10)
+        img.OutdoorRelativeHumidity = struct.unpack("<B", buf[33])[0]
+        img.QFE = inHg2hPa(float(struct.unpack("<H", buf[7:9])[0])/1000.0)
+        img.QFETrend = struct.unpack("<b", buf[3])[0]
         
+        img.RainRate = float(struct.unpack("<H", buf[41:43])[0]) * 0.2
+        img.RainDay = float(struct.unpack("<H", buf[50:52])[0])* 0.2
+        
+        img.OutdoorDewpoint = dewpoint_approximation(img.OutdoorTemperature, img.OutdoorRelativeHumidity)
+        
+        stationcrc = struct.unpack(">H", buf[97:100])[0]
+        
+        crc = 0
+        
+        ccitt = CRC_CCITT()
+        for c in buf[:97]:
+            crc = ccitt.update_crc(crc, ord(c))
+
+        if (stationcrc != crc):
+            raise Exception("CRC error, image crc does not match our crc!")
+                
         return img
     
-    def getArchiveImage(self):
-        #buf = self.readLinkMem(4, 1, 0x3A)
-        #periods = struct.unpack("<BB", buf)
-        #print "SamplePeriod (s)" + str(256-periods[0]) + " archive period (m)" + str(periods[1])
-
-        img = ArchiveImage()
-        
-        buf = self.readLinkMem(4, 1, 0x9C)
-        
-        wind = struct.unpack("<BB", buf)
-        if wind[1] == 0xFF:
-            img.AverageWindSpeed = 0
-            img.DominantWindDirection = 0
-        else:
-            img.AverageWindSpeed = wind[0]
-            img.DominantWindDirection = wind[1]*24
-        
-        buf = self.readLinkMem(2, 1, 0xA4) 
-        
-        img.Gust = struct.unpack("<B", buf)[0]
-        
-        return img
-    
-    def setArchiveTime(self, minutes):
-        data = struct.pack("<B", minutes)
-        
-        self.__ser.write("SAP"+data+"\r")
-        self.checkAck()
-    
-    def setSampleTime(self, seconds):
-        data = struct.pack("<B", 256-seconds)
-        
-        self.__ser.write("SSP"+data+"\r")
-        self.checkAck()
-    
-    def readLinkMem(self, nibbles, bank, addr):
-        if nibbles > 8:
-            raise Exception("nibbles > 8")
-        
-        data = struct.pack("<BBB", bank, addr, nibbles-1)
-        
-        self.__ser.write("RRD"+data+"\r")    
+    def setTime(self):
+        self.__ser.write("SETTIME\n")
         
         self.checkAck()
         
-        bufLen = int(float(nibbles)/2+0.5)
+        t = time.localtime()
         
-        buf = self.__ser.read(bufLen)
+        timestr = struct.pack("<BBBBBB", t.tm_sec, t.tm_min, t.tm_hour, t.tm_mday, t.tm_mon, t.tm_year - 1900)
         
-        return buf
-    
-    def readStationMem(self, nibbles, bank, addr):
-        b = 2
-        if bank == 0: b = 2
-        if bank == 1: b = 4
+        crc = CRC_CCITT()
+        crc16 = 0
+        for c in timestr:
+            crc16 = crc.update_crc(crc16, ord(c))
         
-        nib = (nibbles << 4) | b
-        
-        addr = struct.pack("<BB", nib, addr)
-        
-        self.__ser.write("WRD"+addr+"\r")    
-        
+        self.__ser.write(timestr + struct.pack(">H", crc16))
         self.checkAck()
         
-        bufLen = int(float(nibbles)/2+0.5)
-        
-        return self.__ser.read(bufLen)
-    
-    def writeStationMem(self, nibbles, bank, addr, data):
-        b = 2
-        if bank == 0: b = 1
-        if bank == 1: b = 3
-        
-        nib = (nibbles << 4) | b
-        addr = struct.pack("<BB", nib, addr)
-        self.__ser.write("WWR"+addr+data+"\r")
-        self.checkAck()
-    
-    def readStationTime(self):
-        buf = self.readStationMem(2, 1, 0xBE)
-        h = struct.unpack("<B", buf)
-        
-        buf = self.readStationMem(2, 1, 0xC0)
-        m = struct.unpack("<B", buf)        
-
-        buf = self.readStationMem(2, 1, 0xC2)
-        s = struct.unpack("<B", buf)        
-
-        print "H:M:S: "+str(h[0])+":"+str(m[0])+":"+str(s[0])
-
-    # TODO: Verify somehow..?
-    def readStationMake(self):
-        buf = self.readStationMem(1, 0, 0x4d)
-        
-        print "Station reports model nibble: "+repr(buf)+" (0x00 is WWIII!)"

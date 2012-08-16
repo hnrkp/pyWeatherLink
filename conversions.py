@@ -18,6 +18,8 @@
 
 """
 
+import numpy as np
+
 def f2c(f):
     c = (f-32) * (5.0/9.0)
     return round(c, 1)
@@ -25,3 +27,20 @@ def f2c(f):
 def mph2kts(mph):
     kts = mph * 0.868976242
     return int(round(kts, 0))
+
+def inHg2hPa(inHg):
+    return inHg * 33.8638816
+
+# constants
+a = 17.271
+b = 237.7 # degC
+
+def gamma(T,RH):
+    g = (a * T / (b + T)) + np.log(RH/100.0)
+    return g
+
+def dewpoint_approximation(T, RH):
+    gm = gamma(T,RH)
+    Td = (b * gm) / (a - gm)
+    
+    return Td

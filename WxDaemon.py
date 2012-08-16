@@ -46,67 +46,75 @@ class Poller(threading.Thread):
     def __init__(self):
         #self.link = DummyLink()
         self.link = Link()
-        self.link.setArchiveTime(1)
-        self.link.setSampleTime(5)
+        #self.link.setArchiveTime(1)
+        #self.link.setSampleTime(5)
 
-        self.aimg = self.link.getArchiveImage()
+        #self.aimg = self.link.getArchiveImage()
         self.simg = self.link.getSensorImage()
         threading.Thread.__init__ ( self )
     
     def run(self):
         gust = 0
-        counter = 0
+        #counter = 0
         while 1:
-            time.sleep(10)
+            time.sleep(2)
             try:
                 self.simg = self.link.getSensorImage()
-            except Exception:
+            except Exception as e:
                 self.simg = None
-                print "Exception while getting sensor image!"
+                print "Exception while getting sensor image!", e
                 continue
             
             if self.simg.WindSpeed > gust:
                 gust = self.simg.WindSpeed
             
-            counter += 1
-            if counter >= 3:
-                counter = 0
-                try:
-                    self.aimg = self.link.getArchiveImage()
-                except:
-                    print "Exception while getting archive image!"
-                    self.aimg = None
-                    continue
-                
-                # Ugly hack to protect ourselves from strange readings when gust
-                # in the beginning of the archive image is lower than average and 
-                # current wind speeds
-                if self.aimg.AverageWindSpeed > self.aimg.Gust:
-                    self.aimg.Gust = self.aimg.AverageWindSpeed
-                
-                if self.aimg.Gust < gust:
-                    self.aimg.Gust = gust
-                gust = 0
+            #counter += 1
+            #if counter >= 3:
+            #    counter = 0
+            #    try:
+            #        self.aimg = self.link.getArchiveImage()
+            #    except:
+            #        print "Exception while getting archive image!"
+            #        self.aimg = None
+            #        continue
+            #    
+            #    # Ugly hack to protect ourselves from strange readings when gust
+            #    # in the beginning of the archive image is lower than average and 
+            #    # current wind speeds
+            #    if self.aimg.AverageWindSpeed > self.aimg.Gust:
+            #        self.aimg.Gust = self.aimg.AverageWindSpeed
+            #    
+            #    if self.aimg.Gust < gust:
+            #        self.aimg.Gust = gust
+            #gust = 0
     
 poller = Poller()
+poller.daemon = True
 poller.start()
 
 class WxRequestHandler(SocketServer.BaseRequestHandler):
 
     def setup(self):
         #print self.client_address, 'connected!'
-        a = poller.aimg
+        #a = poller.aimg
         s = poller.simg
-        if s is None or a is None:
+        if s is None is None:
             self.request.send("ERROR"+"\n")
             return
-        self.request.send("WS "+ str(s.WindSpeed) +"\n")
-        self.request.send("WSAVG "+str(a.AverageWindSpeed)+"\n")
-        self.request.send("WDIR "+str(s.WindDirection) + "\n")
-        self.request.send("WDIRAVG "+str(a.DominantWindDirection)+"\n")
-        self.request.send("GUST "+str(a.Gust)+"\n")
-        self.request.send("ITEMP "+str(s.IndoorTemperature)+"\n")
-        self.request.send("OTEMP "+str(s.OutdoorTemperature)+"\n")
+        self.request.send("WS " + str(s.WindSpeed) + "\n")
+        self.request.send("WSAVG "+str(s.AverageWindSpeed)+"\n")
+        self.request.send("WDIR " + str(s.WindDirection) + "\n")
+        #self.request.send("WDIRAVG "+str(a.DominantWindDirection)+"\n")
+        #self.request.send("GUST "+str(a.Gust)+"\n")
+        self.request.send("ITEMP " + str(s.IndoorTemperature) + "\n")
+        self.request.send("OTEMP " + str(s.OutdoorTemperature) + "\n")
+        self.request.send("ODEW " + str(round(s.OutdoorDewpoint, 1)) + "\n")
+        self.request.send("IRELH " + str(s.IndoorRelativeHumidity) + "\n")
+        self.request.send("ORELH " + str(s.OutdoorRelativeHumidity) + "\n")
+        self.request.send("QFE " + str(round(s.QFE, 1)) + "\n")
+        self.request.send("QFETREND " + str(s.QFETrend) + "\n")
+        self.request.send("RRATE " + str(round(s.RainRate, 2)) + "\n")
+        self.request.send("RDAY "+ str(round(s.RainDay, 2)) + "\n")
 
     def handle(self):
         return
@@ -116,5 +124,5 @@ class WxRequestHandler(SocketServer.BaseRequestHandler):
         return
 
 SocketServer.ThreadingTCPServer.allow_reuse_address = True
-server = SocketServer.ThreadingTCPServer(('127.0.0.1', 6666), WxRequestHandler)
+server = SocketServer.ThreadingTCPServer(('127.0.0.1', 6667), WxRequestHandler)
 server.serve_forever()
