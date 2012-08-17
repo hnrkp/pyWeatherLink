@@ -30,13 +30,33 @@ from crc import CRC_CCITT
 class Link:
     def __init__(self, dev = '/dev/ttyUSB0', baud = 19200):
         self.__ser = serial.Serial(dev, baud, timeout = 2)
-        self.__ser.write("\n")
-        print "woo: ", self.__ser.read(200)
-        
+        self.__ser.open()
+        self.wakeup()
         self.setTime()
+        
+        self.getModel()
+        #self.getVersion()
 
     def __del__(self):
         self.__ser.close()
+    
+    def wakeup(self):
+        while self.__ser.inWaiting():
+            self.__ser.read()
+        
+        n = 0
+        while True:
+            self.__ser.write("\n")
+            buf = self.__ser.read(1)
+            
+            if buf != '' and buf[0] == "\n":
+                break
+            
+            n += 1
+            
+            if n >= 3:
+                raise Exception("Failed to wake up console")
+        
 
     def checkAck(self):
         resp = "\n"
@@ -65,6 +85,7 @@ class Link:
         
 
     def getSensorImage(self):
+        self.wakeup()
         self.__ser.write("LOOP 1\n");
 
         self.checkAck()
@@ -103,7 +124,30 @@ class Link:
                 
         return img
     
+    def getModel(self):
+        self.wakeup()
+        self.__ser.write("WRD" + chr(0x12) + chr(0x4d) + "\n")
+        self.checkAck()
+        
+        make = ord(self.__ser.read())
+        
+        print "Talking to a",
+        
+        if make == 17:
+            print "Vantage Vue"
+    
+    def getVersion(self):
+        self.wakeup()
+        self.__ser.write("NVER\n")
+        
+        print self.__ser.read(100)
+        
+        self.__ser.write("VER\n")
+        
+        print self.__ser.read(100)
+    
     def setTime(self):
+        self.wakeup()
         self.__ser.write("SETTIME\n")
         
         self.checkAck()

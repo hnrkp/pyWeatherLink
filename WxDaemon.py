@@ -63,6 +63,8 @@ class Poller(threading.Thread):
             except Exception as e:
                 self.simg = None
                 print "Exception while getting sensor image!", e
+                import traceback
+                traceback.print_exc()
                 continue
             
             if self.simg.WindSpeed > gust:
