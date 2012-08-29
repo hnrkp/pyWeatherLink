@@ -28,7 +28,7 @@ from datatypes import SensorImage#, ArchiveImage
 from crc import CRC_CCITT
 
 class Link:
-    def __init__(self, dev = '/dev/ttyUSB0', baud = 19200):
+    def __init__(self, dev = '/dev/ttyS1', baud = 19200):
         self.__ser = serial.Serial(dev, baud, timeout = 2)
         self.__ser.open()
         self.wakeup()
@@ -105,6 +105,7 @@ class Link:
         img.OutdoorRelativeHumidity = struct.unpack("<B", buf[33])[0]
         img.QFE = inHg2hPa(float(struct.unpack("<H", buf[7:9])[0])/1000.0)
         img.QFETrend = struct.unpack("<b", buf[3])[0]
+        img.Forecast = struct.unpack("<B", buf[89])[0]
         
         img.RainRate = float(struct.unpack("<H", buf[41:43])[0]) * 0.2
         img.RainDay = float(struct.unpack("<H", buf[50:52])[0])* 0.2

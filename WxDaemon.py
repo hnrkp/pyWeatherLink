@@ -117,6 +117,7 @@ class WxRequestHandler(SocketServer.BaseRequestHandler):
         self.request.send("QFETREND " + str(s.QFETrend) + "\n")
         self.request.send("RRATE " + str(round(s.RainRate, 2)) + "\n")
         self.request.send("RDAY "+ str(round(s.RainDay, 2)) + "\n")
+        self.request.send("FORECAST " + str(s.Forecast) + "\n")
 
     def handle(self):
         return
