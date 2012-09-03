@@ -28,7 +28,7 @@ from datatypes import SensorImage#, ArchiveImage
 from crc import CRC_CCITT
 
 class Link:
-    def __init__(self, dev = '/dev/ttyS1', baud = 19200):
+    def __init__(self, dev = '/dev/ttyS0', baud = 19200):
         self.__ser = serial.Serial(dev, baud, timeout = 2)
         self.__ser.open()
         self.wakeup()
@@ -123,6 +123,8 @@ class Link:
         if (stationcrc != crc):
             raise Exception("CRC error, image crc does not match our crc!")
                 
+        img.Timestamp = time.time()
+
         return img
     
     def getModel(self):

@@ -118,6 +118,7 @@ class WxRequestHandler(SocketServer.BaseRequestHandler):
         self.request.send("RRATE " + str(round(s.RainRate, 2)) + "\n")
         self.request.send("RDAY "+ str(round(s.RainDay, 2)) + "\n")
         self.request.send("FORECAST " + str(s.Forecast) + "\n")
+        self.request.send("TIMESTAMP " + str(s.Timestamp) + "\n")
 
     def handle(self):
         return
@@ -127,5 +128,5 @@ class WxRequestHandler(SocketServer.BaseRequestHandler):
         return
 
 SocketServer.ThreadingTCPServer.allow_reuse_address = True
-server = SocketServer.ThreadingTCPServer(('127.0.0.1', 6667), WxRequestHandler)
+server = SocketServer.ThreadingTCPServer(('127.0.0.1', 6666), WxRequestHandler)
 server.serve_forever()
