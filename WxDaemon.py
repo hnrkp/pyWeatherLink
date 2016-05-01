@@ -23,6 +23,7 @@ import SocketServer
 import time
 
 import random
+import sys
 
 import threading
 from communication import Link
@@ -67,8 +68,14 @@ class Poller(threading.Thread):
                 traceback.print_exc()
                 continue
             
-            if self.simg.WindSpeed > gust:
-                gust = self.simg.WindSpeed
+            #if self.simg.WindSpeed > gust:
+            #    gust = self.simg.WindSpeed
+            
+            print "\rWS " + str(self.simg.WindSpeed) + " WDIR " + \
+                    str(self.simg.WindDirection) + " OTEMP " + \
+                    str(self.simg.OutdoorTemperature) + " QNH " + str(self.simg.QFE) + \
+                    " TIMESTAMP " + str(self.simg.Timestamp) + " ",
+            sys.stdout.flush()
             
             #counter += 1
             #if counter >= 3:
