@@ -30,7 +30,6 @@ from crc import CRC_CCITT
 class Link:
     def __init__(self, dev = '/dev/ttyS0', baud = 19200):
         self.__ser = serial.Serial(dev, baud, timeout = 2)
-        self.__ser.open()
         self.wakeup()
         self.setTime()
         
